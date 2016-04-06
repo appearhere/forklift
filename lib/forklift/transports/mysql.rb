@@ -1,5 +1,6 @@
 require 'mysql2'
 require 'open3'
+require 'zlib'
 
 module Forklift
   module Connection
@@ -232,7 +233,11 @@ module Forklift
       end
 
       def exec_script(path)
-        body = File.read(path)
+        body = if path[/\.gz$/]
+          Zlib::GzipReader.open(path).read
+        else
+          File.read(path)
+        end
         delim = ';'
         body.split(/^(delimiter\s+.*)$/i).each do |section|
           if section =~ /^delimiter/i
