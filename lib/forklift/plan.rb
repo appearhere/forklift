@@ -28,7 +28,7 @@ module Forklift
         name = f.split("/")[-1].split('.')[0]
         type = f.split("/")[-2]
         connections[type.to_sym] = {} if connections[type.to_sym].nil?
-        db_config = utils.load_yml(f)
+        db_config = utils.load_yml(f).deep_symbolize_keys
 
         begin
           loader = "Forklift::Connection::#{type.camelcase}.new(db_config, self)"
