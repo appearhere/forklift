@@ -26,7 +26,7 @@ module Forklift
         q("RENAME TABLE `#{database}`.`#{table}` TO `#{new_database}`.`#{new_table}`")
       end
 
-      def read(query, database=current_database, looping=true, limit=forklift.config[:batch_size], offset=0)
+      def read(query, database: current_database, looping: true, limit: forklift.config[:batch_size], offset: 0)
         loop_count = 0
         # TODO: Detect limit/offset already present in query
 
@@ -149,7 +149,7 @@ module Forklift
 
       def read_since(table, since, matcher=default_matcher, database=current_database, limit=forklift.config[:batch_size])
         query = "SELECT * FROM `#{database}`.`#{table}` WHERE `#{matcher}` >= '#{since.to_s(:db)}' ORDER BY `#{matcher}` ASC"
-        self.read(query, database, true, limit){|data|
+        self.read(query, database: database, looping: true, limit: limit){|data|
           if block_given?
             yield data
           else
@@ -208,12 +208,20 @@ module Forklift
       end
 
       def dump(file, options=[])
-        # example options: 
+        # example options:
         # options.push '--max_allowed_packet=512M'
         # options.push '--set-gtid-purged=OFF'
+
+        tmpfile = Tempfile.new(['config', '.cnf'])
+        tmpfile.puts "[client]"
+        tmpfile.puts "user = #{config[:username]}" unless config[:username].nil?
+        tmpfile.puts "password = #{config[:password]}" unless config[:password].nil?
+        tmpfile.puts "host = #{config[:host]}" unless config[:host].nil?
+        tmpfile.puts "port = #{config[:port]}" unless config[:port].nil?
+        tmpfile.close
+
         cmd = "mysqldump"
-        cmd << " -u#{config[:username]}" unless config[:username].nil?
-        cmd << " -p#{config[:password]}" unless config[:password].nil?
+        cmd << " --defaults-extra-file=#{tmpfile.path}"
         options.each do |o|
           cmd << " #{o} "
         end
@@ -222,7 +230,7 @@ module Forklift
         forklift.logger.log "Dumping #{config['database']} to #{file}"
         forklift.logger.debug cmd
 
-        stdin, stdout, stderr = Open3.popen3(cmd)
+        _, stdout, stderr = Open3.popen3(cmd)
         stdout = stdout.readlines
         stderr = stderr.readlines
         if stderr.length > 0
@@ -230,6 +238,8 @@ module Forklift
         else
           forklift.logger.log "  > Dump complete"
         end
+      ensure
+        tmpfile.unlink
       end
 
       def exec_script(path)
@@ -303,9 +313,6 @@ module Forklift
           end
         end.compact.join(', ') + ")"
       end
-
-      #/private
-
     end
   end
 end
