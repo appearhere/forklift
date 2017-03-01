@@ -33,7 +33,7 @@ module Forklift
         while ( looping == true || loop_count == 0 )
           data = []
           prepared_query = query
-          if prepared_query.downcase.include?("select") && !prepared_query.downcase.include?("limit")
+          if prepared_query[/select/i] && !prepared_query[/\slimit\s/i]
             prepared_query = "#{prepared_query} LIMIT #{offset}, #{limit}"
           end
           response = q(prepared_query)
