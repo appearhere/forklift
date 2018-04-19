@@ -175,12 +175,12 @@ module Forklift
         # @return
         #
         # @see .pipe
-        def mysql_import(source, from_table, destination, to_table, options={})
-          primary_key = detect_primary_key_or_default(source, from_table)
+        def mysql_import(source, from_table, destination, to_table, options={truncate: true, drop: false})
+          primary_key = source.q("SHOW INDEX FROM `#{source.current_database}`.`#{from_table}` WHERE key_name = 'PRIMARY';").try(:first).try(:[], 'Column_name') || 'id'
 
-          # destination.truncate table
-          destination.drop! to_table if destination.tables.include?(to_table)
-          source.read("SELECT * FROM #{from_table}"){ |data| destination.write(data, to_table, true, destination.current_database, primary_key) }
+          destination.truncate table if options[:truncate]
+          destination.drop! to_table if destination.tables.include?(to_table) && options[:drop]
+          source.read("SELECT * FROM #{from_table}") { |data| destination.write(data, to_table, true, destination.current_database, primary_key) }
         end
 
         # The high water method will stub a row in all tables with a `default_matcher` column prentending to have a record from `time`
@@ -197,7 +197,7 @@ module Forklift
                 if(columns[i] == matcher)
                   row[columns[i]] = time.to_s(:db)
                 elsif( types[i] =~ /text/ )
-                  row[columns[i]] = "~~stub~~" 
+                  row[columns[i]] = "~~stub~~"
                 elsif( types[i] =~ /varchar/  )
                   row[columns[i]] = "~~stub~~".to_sym
                 elsif( types[i] =~ /float/ || types[i] =~ /int/ || types[i] =~ /decimal/ )
