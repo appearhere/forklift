@@ -146,7 +146,7 @@ module Forklift
 
       def dump(file, options=[])
         dburl = URI::Generic.new('postgresql', "#{client.user}:#{config[:password]}", (client.host || 'localhost'), client.port, nil, "/#{client.db}", nil, nil, nil)
-        cmd = %{pg_dump --dbname #{dburl.to_s} -Fp #{options.join(' ')} | gzip > #{file}}
+        cmd = %{pg_dump --dbname #{dburl.to_s} -Fp #{options.join(' ')} | sed -e '/^--/d' | sed '/^$/d' | gzip > #{file}}
         forklift.logger.log "Dumping #{client.db} to #{file}"
         forklift.logger.debug cmd
 
@@ -167,6 +167,7 @@ module Forklift
                else
                  File.read(path)
                end
+
         q(body)
       end
 
@@ -189,7 +190,7 @@ module Forklift
       end
 
       def q(query, options={})
-        forklift.logger.debug "\tSQL[#{config[:database]}]: #{query}"
+        forklift.logger.debug "\tSQL[#{config[:dbname]}]: #{query}"
         client.exec('set search_path=public')
         Result.new(client.exec(query))
       end
